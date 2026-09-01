@@ -19,40 +19,45 @@ jobs:
         with:
           node-version: 20
 
-      - name: Configurar Java 21 (JDK)
+      - name: Configurar Java 17 (JDK)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Instalar Dependências
+      - name: Aceitar Licenças e Instalar Build Tools Android
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Instalar Dependências e Capacitor 6 (LTS Estável)
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/core @capacitor/cli @capacitor/android --save-dev
+          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 --save-dev
 
-      - name: Compilar Aplicação Web
+      - name: Compilar Aplicação Web (Vite)
         run: npm run build
 
-      - name: Inicializar Projeto Android (Capacitor)
+      - name: Gerar Projeto Android
         run: |
           npx cap init "GKD Controle Diário" "com.gkd.controlediario" --web-dir dist || true
-          npx cap add android || true
+          rm -rf android
+          npx cap add android
           npx cap sync android
 
-      - name: Ajustar Permissões Gradle
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK Android
         run: |
           cd android
           chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Compilar APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Organizar Arquivo APK
+      - name: Separar Arquivo APK
         run: |
           mkdir -p apk_output
           cp android/app/build/outputs/apk/debug/app-debug.apk apk_output/GKD_Controle_Diario.apk
@@ -62,3 +67,4 @@ jobs:
         with:
           name: GKD_Controle_Diario_APK
           path: apk_output/GKD_Controle_Diario.apk
+          if-no-files-found: error
