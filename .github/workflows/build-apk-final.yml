@@ -119,7 +119,7 @@ jobs:
 
           manifest = manifest.replace("<application", permissionsXml + "\n    <application");
           fs.writeFileSync(manifestPath, manifest, "utf8");
-          console.log("✅ Todas as permissões e câmera nativa foram injetadas no AndroidManifest.xml!");
+          console.log("✅ Todas as permissões e recursos de câmera foram injetados no AndroidManifest.xml!");
           '
 
       - name: Injetar Ícone Proporcional Alinhado (88% da Área)
@@ -157,6 +157,7 @@ jobs:
               const target = path.join(resDir, s.dir);
               if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
+              // 88% da área: escala exata para bater visualmente com VoltaLá e Rastreador
               const logoSizeFg = Math.round(s.fg * 0.88);
               const logoBufferFg = await sharp(iconPath)
                 .resize(logoSizeFg, logoSizeFg, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -175,6 +176,7 @@ jobs:
               .png()
               .toFile(path.join(target, "ic_launcher_foreground.png"));
 
+              // Ícone legado quadrado
               const legacySize = Math.round(s.size * 0.96);
               const logoLegacy = await sharp(iconPath)
                 .resize(legacySize, legacySize, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
@@ -193,6 +195,7 @@ jobs:
               .png()
               .toFile(path.join(target, "ic_launcher.png"));
 
+              // Ícone redondo
               await sharp({
                 create: {
                   width: s.size,
