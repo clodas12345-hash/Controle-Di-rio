@@ -33,10 +33,10 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Instalar Dependências e Capacitor 6
+      - name: Instalar Dependências e Plugins do Capacitor
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 sharp --save-dev
+          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 @capacitor/local-notifications@6.1.1 @capacitor/geolocation@6.0.2 @capacitor/camera@6.1.2 @capacitor/filesystem@6.0.2 sharp --save-dev
 
       - name: Sincronizar Assets do Ícone
         run: |
@@ -61,6 +61,65 @@ jobs:
           rm -rf android
           npx cap add android
           npx cap sync android
+
+      - name: Injetar Todas as Permissões no AndroidManifest.xml
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+          const manifestPath = path.resolve("android/app/src/main/AndroidManifest.xml");
+          
+          if (!fs.existsSync(manifestPath)) {
+            console.error("AndroidManifest.xml não encontrado!");
+            process.exit(1);
+          }
+
+          let manifest = fs.readFileSync(manifestPath, "utf8");
+
+          const permissions = [
+            "android.permission.INTERNET",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.VIBRATE",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.SCHEDULE_EXACT_ALARM",
+            "android.permission.USE_EXACT_ALARM",
+            "android.permission.WAKE_LOCK",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_LOCATION",
+            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_BACKGROUND_LOCATION",
+            "android.permission.CAMERA",
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.WRITE_EXTERNAL_STORAGE",
+            "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.SYSTEM_ALERT_WINDOW"
+          ];
+
+          let permissionsXml = "\n    <!-- Permissões Completas GKD Controle Diário -->\n";
+          for (const perm of permissions) {
+            if (!manifest.includes(perm)) {
+              permissionsXml += `    <uses-permission android:name="${perm}" />\n`;
+            }
+          }
+
+          const features = [
+            "android.hardware.camera",
+            "android.hardware.camera.autofocus"
+          ];
+          for (const feat of features) {
+            if (!manifest.includes(feat)) {
+              permissionsXml += `    <uses-feature android:name="${feat}" android:required="false" />\n`;
+            }
+          }
+
+          manifest = manifest.replace("<application", permissionsXml + "\n    <application");
+          fs.writeFileSync(manifestPath, manifest, "utf8");
+          console.log("✅ Todas as permissões foram injetadas no AndroidManifest.xml!");
+          '
 
       - name: Injetar Ícone Proporcional Alinhado (88% da Área)
         run: |
@@ -97,7 +156,7 @@ jobs:
               const target = path.join(resDir, s.dir);
               if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
-              // 88% da área: escala idêntica aos ícones VoltaLá e Rastreador
+              // 88% da área: escala exata para bater visualmente com VoltaLá e Rastreador
               const logoSizeFg = Math.round(s.fg * 0.88);
               const logoBufferFg = await sharp(iconPath)
                 .resize(logoSizeFg, logoSizeFg, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -157,7 +216,7 @@ jobs:
               } catch(e){}
             }
 
-            console.log("✅ Ícones formatados no tamanho oficial (88%) idêntico aos apps parceiros!");
+            console.log("✅ Ícones formatados no tamanho oficial (88%)!");
           }
           run().catch(console.error);
           '
