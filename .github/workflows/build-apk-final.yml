@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-apk:
-    name: Compilar APK Android
+    name: Compilar APK Android com Ícone Oficial
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +36,7 @@ jobs:
       - name: Instalar Dependências e Capacitor 6 (LTS Estável)
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 --save-dev
+          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 sharp --save-dev
 
       - name: Compilar Aplicação Web (Vite)
         run: npm run build
@@ -47,6 +47,10 @@ jobs:
           rm -rf android
           npx cap add android
           npx cap sync android
+
+      - name: Aplicar Ícone Oficial GKD Mobility no APK (Mipmaps & Drawables)
+        run: |
+          node scripts/apply-android-icons.mjs
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
