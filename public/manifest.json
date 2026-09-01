@@ -1,0 +1,25 @@
+{
+  "name": "GKD Controle Diário",
+  "short_name": "GKD C.D.",
+  "version": "GKD.C.D.V1.0.0",
+  "description": "Sistema completo de gestão operacional e financeira para motoristas de aplicativo com acompanhamento de faturamento, cálculo de custos por KM, gestão de despesas fixas e sincronização em nuvem.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070709",
+  "theme_color": "#070709",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

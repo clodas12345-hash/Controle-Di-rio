@@ -1,11 +1,12 @@
-<div align="center">
+# Controle Diário - GKD Mobility
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Aplicativo 100% offline para gestão diária de motoristas e controle de rendimentos (Uber, 99, Particular), despesas de veículos, despesas fixas e metas financeiras.
 
-  <h1>Built with AI Studio</h2>
-
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+## Recursos
+- Controle de ganhos diários por plataforma (Uber, 99, Particular).
+- Registro de quilometragem e combustível.
+- Relatório mensal detalhado de despesas fixas e variáveis.
+- Document Feeder e Importação de extratos/registros.
+- Limpeza e varredura de dados (Deep Sweep).
+- Persistência 100% local no dispositivo (LocalStorage / IndexedDB).
+- Totalmente compatível com empacotamento offline para APK (WebIntoApp / Capacitor / Cordova).

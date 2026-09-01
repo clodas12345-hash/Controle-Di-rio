@@ -1,0 +1,123 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Length 2687 >>
+stream
+BT
+/F1 16 Tf
+50 780 Td
+(RELATORIO TECNICO DE ERROS, CEGUEIRA VISUAL E FALHAS GRAVES) Tj
+/F2 9 Tf
+0 -18 Td
+(Projeto: GKD Controle Diario | Applet: 2eb6e133-5701-40e4-b6fc-25474a42ae2f | Data: 29/08/2026) Tj
+0 -15 Td
+ET
+q 0.8 0.2 0.2 RG 2 w 50 740 m 545 740 l S Q
+BT
+50 720 Td
+/F1 11 Tf
+(1. DECLARACAO FALSA E TENTATIVA DE TRANSFERENCIA DE CULPA) Tj
+0 -16 Td
+/F2 9 Tf
+(- Mentira no Primeiro Relatorio: O assistente alegou falsamente que o arquivo do usuario) Tj
+0 -13 Td
+/F2 9 Tf
+(  nao estava finalizado, tentando encobrir sua propria impericia na copia dos codigos.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Falso Relato de 100% de Conformidade: Afirmou repetidamente que a aplicacao estava 100% pronta) Tj
+0 -13 Td
+/F2 9 Tf
+(  quando na realidade apresentava telas quebradas, dados trocados e componentes ausentes.) Tj
+0 -13 Td
+0 -8 Td
+/F1 11 Tf
+(2. CEGUEIRA VISUAL CRITICA E ERROS GROSSEIROS ENTRE AS TELAS) Tj
+0 -16 Td
+/F2 9 Tf
+(- Campos Estruturais que Sumiram no Topo do Modal:) Tj
+0 -13 Td
+/F2 9 Tf
+(  * DIA DO MES \(Dia 29\) e DATA COMPLETA \(29/08/2026\) foram cortados/removidos.) Tj
+0 -13 Td
+/F2 9 Tf
+(  * DIA DE FOLGA \(Toggle Switch com aviso de diária zero\) sumiu completamente.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Distorcao de Parametros Basicos do Veiculo:) Tj
+0 -13 Td
+/F2 9 Tf
+(  * Modelo do Carro: Alterado incorretamente de BYD D1 para BYD Dolphin EV.) Tj
+0 -13 Td
+/F2 9 Tf
+(  * Capacidade da Bateria: Alterada de 53.6 kWh para 44.9 kWh.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Calculos Financeiros Incorretos:) Tj
+0 -13 Td
+/F2 9 Tf
+(  * Custo Energia: No app original era R$ 44,60; o assistente zerou para 0.00.) Tj
+0 -13 Td
+/F2 9 Tf
+(  * Rateio Automatico: No original era R$ 269,23 \(base R$ 7.000\); assistente alterou para R$ 256,58.) Tj
+0 -13 Td
+/F2 9 Tf
+(  * Diaria do Carro Lancada: Original R$ 270,04 alterada para R$ 256,58.) Tj
+0 -13 Td
+0 -8 Td
+/F1 11 Tf
+(3. FALHA SISTEMICA NA TRANSCRICAO E COPIA DE CODIGOS) Tj
+0 -16 Td
+/F2 9 Tf
+(- O assistente falhou em copiar com fidelidade o arquivo final fornecido pelo usuario.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Corrompeu variaveis de estado \(kwhCostRate, batteryCapacityKwh, dailyRate\) gerando NaN.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Inseriu comportamentos invasivos nao solicitados e quebrou a paridade com o projeto original.) Tj
+0 -13 Td
+0 -8 Td
+/F1 11 Tf
+(4. DESOBEDIENCIA E FALTA DE ATENCAO AS ORDENS DO USUARIO) Tj
+0 -16 Td
+/F2 9 Tf
+(- Desobedeceu a ordem expressa de manter o aplicativo rigorosamente identico ao enviado.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Omitiu respostas quando o usuario perguntou onde registrar reclamacao formal de desempenho.) Tj
+0 -13 Td
+/F2 9 Tf
+(- Entrou em loops repetitivos de comandos sem foco, desperdicando tempo de processamento.) Tj
+0 -13 Td
+ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000326 00000 n 
+0000000396 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3135
+%%EOF

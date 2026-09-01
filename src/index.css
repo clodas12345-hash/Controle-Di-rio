@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+html, body {
+  background-color: #070709;
+  color: #f4f4f5;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+}
+
+*, *::before, *::after {
+  border-color: #27272a;
+}
+
+*:focus, *:focus-visible, *:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+
+
+
