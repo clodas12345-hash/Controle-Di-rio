@@ -62,7 +62,7 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Injetar Ícone com Tamanho Equilibrado (Meio Termo ~76%)
+      - name: Injetar Ícone Proporcional Alinhado (88% da Área)
         run: |
           node -e '
           const fs = require("fs");
@@ -97,8 +97,8 @@ jobs:
               const target = path.join(resDir, s.dir);
               if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
-              // Meio termo: 76% da área
-              const logoSizeFg = Math.round(s.fg * 0.76);
+              // 88% da área: escala idêntica aos ícones VoltaLá e Rastreador
+              const logoSizeFg = Math.round(s.fg * 0.88);
               const logoBufferFg = await sharp(iconPath)
                 .resize(logoSizeFg, logoSizeFg, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .png()
@@ -117,7 +117,7 @@ jobs:
               .toFile(path.join(target, "ic_launcher_foreground.png"));
 
               // Ícone legado quadrado
-              const legacySize = Math.round(s.size * 0.90);
+              const legacySize = Math.round(s.size * 0.96);
               const logoLegacy = await sharp(iconPath)
                 .resize(legacySize, legacySize, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
                 .png()
@@ -157,7 +157,7 @@ jobs:
               } catch(e){}
             }
 
-            console.log("✅ Ícones formatados no meio termo perfeito (76%)!");
+            console.log("✅ Ícones formatados no tamanho oficial (88%) idêntico aos apps parceiros!");
           }
           run().catch(console.error);
           '
