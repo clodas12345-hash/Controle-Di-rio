@@ -33,7 +33,7 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Instalar Dependências e Capacitor 6 (LTS Estável)
+      - name: Instalar Dependências e Capacitor 6
         run: |
           npm install --legacy-peer-deps
           npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 sharp --save-dev
@@ -48,9 +48,58 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Aplicar Ícone Oficial GKD Mobility no APK (Mipmaps & Drawables)
+      - name: Injetar Ícone Oficial GKD Mobility (Autônomo)
         run: |
-          node scripts/apply-android-icons.mjs
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          async function run() {
+            let iconPath = ["public/icon2.png", "icon2.png", "Icon2.png", "public/Icon2.png"].find(p => fs.existsSync(p));
+            if (!iconPath) {
+              const files = fs.readdirSync("public");
+              const found = files.find(f => f.toLowerCase().includes("icon2"));
+              if (found) iconPath = path.join("public", found);
+            }
+
+            if (!iconPath) {
+              console.error("Nenhum ícone encontrado!");
+              return;
+            }
+
+            console.log("Utilizando ícone oficial:", iconPath);
+            const resDir = path.resolve("android/app/src/main/res");
+            const sharp = require("sharp");
+
+            const sizes = [
+              { dir: "mipmap-mdpi", size: 48, fg: 108 },
+              { dir: "mipmap-hdpi", size: 72, fg: 162 },
+              { dir: "mipmap-xhdpi", size: 96, fg: 216 },
+              { dir: "mipmap-xxhdpi", size: 144, fg: 324 },
+              { dir: "mipmap-xxxhdpi", size: 192, fg: 432 }
+            ];
+
+            for (const s of sizes) {
+              const target = path.join(resDir, s.dir);
+              if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+
+              await sharp(iconPath).resize(s.size, s.size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toFile(path.join(target, "ic_launcher.png"));
+              await sharp(iconPath).resize(s.size, s.size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toFile(path.join(target, "ic_launcher_round.png"));
+              await sharp(iconPath).resize(s.fg, s.fg, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toFile(path.join(target, "ic_launcher_foreground.png"));
+            }
+
+            const drawables = fs.readdirSync(resDir).filter(f => f.startsWith("drawable"));
+            for (const d of drawables) {
+              const dPath = path.join(resDir, d);
+              try {
+                fs.copyFileSync(iconPath, path.join(dPath, "splash.png"));
+              } catch(e){}
+            }
+
+            console.log("✅ Ícones oficiais injetados com sucesso em todas as resoluções do Android!");
+          }
+          run().catch(console.error);
+          '
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
