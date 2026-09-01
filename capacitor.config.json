@@ -1,0 +1,6 @@
+{
+  "appId": "com.gkd.controlediario",
+  "appName": "GKD Controle Diário",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
