@@ -1,4 +1,4 @@
-name: Gerar APK Android - GKD Controle Diário
+name: Gerar APK Android - Controle Diário
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-apk:
-    name: Compilar APK Android com Ícone Oficial
+    name: Compilar APK Android
     runs-on: ubuntu-latest
 
     steps:
@@ -41,9 +41,9 @@ jobs:
       - name: Compilar Aplicação Web (Vite)
         run: npm run build
 
-      - name: Gerar Projeto Android
+      - name: Gerar Projeto Android com Nome Controle Diário
         run: |
-          npx cap init "GKD Controle Diário" "com.gkd.controlediario" --web-dir dist || true
+          npx cap init "Controle Diário" "com.gkd.controlediario" --web-dir dist || true
           rm -rf android
           npx cap add android
           npx cap sync android
@@ -83,7 +83,7 @@ jobs:
               const target = path.join(resDir, s.dir);
               if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
-              // Safe zone para Adaptive Icons do Android: o logo ocupa 62% da área total com fundo transparente
+              // Safe zone oficial do Android
               const logoSizeFg = Math.round(s.fg * 0.62);
               const logoBufferFg = await sharp(iconPath)
                 .resize(logoSizeFg, logoSizeFg, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -160,11 +160,11 @@ jobs:
       - name: Separar Arquivo APK
         run: |
           mkdir -p apk_output
-          cp android/app/build/outputs/apk/debug/app-debug.apk apk_output/GKD_Controle_Diario.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk apk_output/Controle_Diario.apk
 
       - name: Publicar APK para Download (Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: GKD_Controle_Diario_APK
-          path: apk_output/GKD_Controle_Diario.apk
+          name: Controle_Diario_APK
+          path: apk_output/Controle_Diario.apk
           if-no-files-found: error
