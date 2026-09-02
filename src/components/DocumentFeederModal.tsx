@@ -109,6 +109,14 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
   });
   const [isSavedSuccess, setIsSavedSuccess] = useState(false);
   const [previewModalFile, setPreviewModalFile] = useState<{ name: string; url: string; mimeType: string } | null>(null);
+  const [showDatePickerPrompt, setShowDatePickerPrompt] = useState(false);
+  const [promptedDateValue, setPromptedDateValue] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
 
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment');
@@ -209,6 +217,34 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
       stopCamera();
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedFiles([]);
+      setPastedText('');
+      setIsProcessing(false);
+      setErrorMsg(null);
+      setExtractedDataList(null);
+      setExtractedFixedExpenses([]);
+      setIsFixedExpensesSaved(false);
+      setIsSavedSuccess(false);
+      setPreviewModalFile(null);
+      setCameraActive(false);
+      setShowDatePickerPrompt(false);
+      setTargetDate(() => {
+        if (defaultDate) return defaultDate;
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      });
+      stopCamera();
+    } else {
+      stopCamera();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, defaultDate]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -448,6 +484,14 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
       // If AI detected a specific date for the first item, set target date
       if (dataList.length > 0 && dataList[0].detectedDate && /^\d{4}-\d{2}-\d{2}$/.test(dataList[0].detectedDate)) {
         setTargetDate(dataList[0].detectedDate);
+      } else if (dataList.length > 0) {
+        // No date detected! Ask the user in a visual pop-up
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        setPromptedDateValue(`${y}-${m}-${d}`);
+        setShowDatePickerPrompt(true);
       }
     } catch (err: any) {
       console.error(err);
@@ -462,6 +506,20 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleConfirmPromptedDate = () => {
+    setTargetDate(promptedDateValue);
+    if (extractedDataList) {
+      const updatedList = extractedDataList.map(data => {
+        if (!data.detectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(data.detectedDate)) {
+          return { ...data, detectedDate: promptedDateValue };
+        }
+        return data;
+      });
+      setExtractedDataList(updatedList);
+    }
+    setShowDatePickerPrompt(false);
   };
 
   const handleApplyFixedExpensesToApp = () => {
@@ -650,23 +708,32 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
                       <div className="h-px bg-zinc-800/80 flex-1"></div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <button
                         type="button"
-                        onClick={() => startCamera('environment')}
-                        className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center gap-2 border border-emerald-400/40"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="px-3 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center gap-2 border border-emerald-400/40"
                       >
                         <Camera className="w-5 h-5 text-emerald-100" />
-                        <span>Abrir Câmera Tela Cheia</span>
+                        <span>Tirar Foto (Câmera)</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-bold rounded-xl text-xs transition-all border border-zinc-700 hover:border-indigo-500/50 cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                        className="px-3 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-bold rounded-xl text-xs transition-all border border-zinc-700 hover:border-indigo-500/50 cursor-pointer flex items-center justify-center gap-2 shadow-md"
                       >
                         <FileText className="w-5 h-5 text-indigo-400" />
-                        <span>Galeria / Várias Fotos</span>
+                        <span>Galeria ou PDF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => startCamera('environment')}
+                        className="px-3 py-3 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800 hover:border-zinc-750 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4 text-emerald-400" />
+                        <span>Câmera em Tempo Real</span>
                       </button>
                     </div>
                   </div>
@@ -683,7 +750,7 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
                     ref={cameraInputRef}
                     type="file"
                     accept="image/*"
-                    capture="user"
+                    capture="environment"
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
@@ -1270,6 +1337,62 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
             </div>
           </div>,
           document.body
+        )}
+
+        {/* Missing Date Picker Prompt Popup */}
+        {showDatePickerPrompt && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg animate-fadeIn">
+            <div className="bg-[#121216] border-2 border-amber-500/40 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-scaleUp">
+              <div className="flex items-center gap-3 text-amber-400">
+                <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">
+                    📅 Data não Identificada
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Não conseguimos detectar uma data automática neste documento.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
+                <label className="block text-xs font-bold text-zinc-300">
+                  Por favor, informe a data correspondente a esta foto:
+                </label>
+                <input
+                  type="date"
+                  value={promptedDateValue}
+                  onChange={(e) => setPromptedDateValue(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-sm font-mono font-bold text-amber-300 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-500 leading-normal">
+                  Essa data será associada a todos os dados extraídos desta imagem para salvar no dia correto do seu histórico.
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDatePickerPrompt(false);
+                  }}
+                  className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-300 text-xs font-bold rounded-xl transition-all cursor-pointer border border-zinc-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPromptedDate}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-amber-600/20 flex items-center gap-2 cursor-pointer border border-amber-400/30"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmar Data</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Full Document / PDF Preview Modal */}

@@ -16,19 +16,19 @@ const ai = new GoogleGenAI({
 });
 
 // Helper function to query Gemini with retry and fallback models to prevent transient 503/429 errors
-const DEFAULT_FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.1-flash-lite"];
+const DEFAULT_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.1-pro-preview"];
 
 async function generateContentWithRetryAndFallback(
   params: any,
-  primaryModel: string = "gemini-flash-latest",
+  primaryModel: string = "gemini-3.6-flash",
   fallbackModels: string[] = DEFAULT_FALLBACK_MODELS
 ) {
   const modelsToTry = [primaryModel, ...fallbackModels.filter(m => m !== primaryModel)];
   
   let lastError = null;
   for (const model of modelsToTry) {
-    let delay = 500;
-    const maxAttempts = 1; // Uma tentativa por modelo: cai mais rápido pro próximo em caso de sobrecarga
+    let delay = 800;
+    const maxAttempts = 2; // Fast retry per model before falling back to next available model
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         console.log(`[Gemini API] Solicitando com modelo "${model}" (Tentativa ${attempt}/${maxAttempts})...`);
@@ -263,7 +263,7 @@ async function startServer() {
             }
           }
         }
-      }, "gemini-flash-latest");
+      }, "gemini-3.6-flash");
 
       const resultText = response.text || "{}";
       const parsedData = JSON.parse(resultText);
@@ -364,7 +364,7 @@ async function startServer() {
             }
           }
         }
-      }, "gemini-flash-latest");
+      }, "gemini-3.6-flash");
 
       const resultText = response.text || "{}";
       res.json(JSON.parse(resultText));
@@ -450,7 +450,7 @@ ${JSON.stringify(logsSummary)}`;
             required: ["textAnswer", "speechText"]
           }
         }
-      }, "gemini-flash-latest");
+      }, "gemini-3.6-flash");
 
       const resultText = response.text || "{}";
       res.json(JSON.parse(resultText));

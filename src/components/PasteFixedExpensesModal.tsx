@@ -47,6 +47,17 @@ export const PasteFixedExpensesModal: React.FC<PasteFixedExpensesModalProps> = (
   const [parsedItems, setParsedItems] = useState<Array<{ id: string; name: string; value: number; installments?: string }>>([]);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('replace');
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setPastedText('');
+      setTargetMonth(selectedMonth);
+      setTargetYear(selectedYear);
+      setIsProcessing(false);
+      setErrorMsg(null);
+      setParsedItems([]);
+    }
+  }, [isOpen, selectedMonth, selectedYear]);
+
   if (!isOpen) return null;
 
   const handleQuickPasteSample = () => {

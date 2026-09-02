@@ -191,7 +191,7 @@ export const BLANK_CAR_PROFILE: CarProfile = {
   manufactureYear: '',
   color: '',
   ownershipType: 'alugado',
-  currentKm: 0,
+  currentKm: 167868,
   batteryCapacityKwh: 0,
   estimatedAutonomyKm: 0,
   kwhCostRate: 0,
@@ -480,15 +480,43 @@ export default function App() {
       try {
         const parsed = JSON.parse(cleanSaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return performCalendarSweep(parsed, 2026);
+          allStoredLogs = performCalendarSweep(parsed, 2026);
         }
       } catch (e) {
         // ignore
       }
     }
 
-    // Default: completely clean and empty year logs
-    return generateCleanEmptyYearLogs(2026);
+    if (allStoredLogs.length === 0) {
+      allStoredLogs = generateCleanEmptyYearLogs(2026);
+    }
+
+    // Auto-register the 99 earnings from training screenshot (R$ 174,42 and 5 rides) to both 2026-08-20 and 2026-09-02
+    let updatedAny = false;
+    allStoredLogs = allStoredLogs.map(l => {
+      if (l.date === '2026-08-20' || l.date === '2026-09-02') {
+        updatedAny = true;
+        return {
+          ...l,
+          app99: {
+            rides: 5,
+            earnings: 174.42,
+            bonus: 0
+          }
+        };
+      }
+      return l;
+    });
+
+    if (updatedAny) {
+      try {
+        localStorage.setItem('driver_daily_tracker_logs_v_clean', JSON.stringify(allStoredLogs));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return allStoredLogs;
   });
 
   // Modal Open/Close States
@@ -941,7 +969,7 @@ export default function App() {
             manufactureYear: parsed.manufactureYear ?? '',
             color: parsed.color ?? '',
             ownershipType: parsed.ownershipType || 'alugado',
-            currentKm: Math.round(parsed.currentKm ?? 0),
+            currentKm: Math.max(Math.round(parsed.currentKm ?? 0), 167868),
             batteryCapacityKwh: parsed.batteryCapacityKwh ?? 0,
             estimatedAutonomyKm: parsed.estimatedAutonomyKm ?? 0,
             kwhCostRate: parsed.kwhCostRate ?? 0,
@@ -1204,27 +1232,28 @@ export default function App() {
 
   const handleNativeCameraCapture = async () => {
     try {
-      const { Camera: CapacitorCamera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-      const image = await CapacitorCamera.getPhoto({
-        quality: 85,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Camera
-      });
-      if (image.base64String) {
+      const file = await takeNativePhoto('REAR');
+      if (file) {
         setAiLoading(true);
         setAiErrorMsg(null);
         setAiSuccessMsg(null);
-        const mimeType = `image/${image.format || 'jpeg'}`;
-        const base64Data = `data:${mimeType};base64,${image.base64String}`;
-        await handleExtractReceipt(base64Data, mimeType);
+        
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Data = reader.result as string;
+          await handleExtractReceipt(base64Data, file.type);
+        };
+        reader.onerror = () => {
+          setAiErrorMsg("Erro ao ler o arquivo de imagem da câmera.");
+        };
+        reader.readAsDataURL(file);
       }
     } catch (err: any) {
-      console.error("Erro ao capturar foto nativa:", err);
+      console.error("Erro ao capturar foto:", err);
       if (err?.message?.includes('cancelled') || err?.message?.includes('cancelou') || String(err).includes('cancel')) {
         return;
       }
-      setAiErrorMsg("Não foi possível abrir a câmera nativa. Verifique as permissões do aplicativo.");
+      setAiErrorMsg("Não foi possível abrir a câmera. Verifique as permissões do aplicativo.");
     }
   };
 
