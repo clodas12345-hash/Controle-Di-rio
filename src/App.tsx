@@ -2594,6 +2594,9 @@ export default function App() {
         console.error(e);
       }
     }
+    setTimeout(() => {
+      handleLoadCarDataIntoEntry();
+    }, 0);
   };
 
   // Export Excel / CSV backup matching table data exactly
