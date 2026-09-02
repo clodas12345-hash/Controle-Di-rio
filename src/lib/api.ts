@@ -1,5 +1,5 @@
-export const CLOUD_SHARED_URL = "https://ais-pre-sno7apz6fxtgjpabxlrnia-473118395752.us-west2.run.app";
-export const CLOUD_DEV_URL = "https://ais-dev-sno7apz6fxtgjpabxlrnia-473118395752.us-west2.run.app";
+export const CLOUD_SHARED_URL = "https://controle-di-rio.onrender.com";
+export const CLOUD_DEV_URL = "https://controle-di-rio.onrender.com";
 
 export function isMobileOrNativeApp(): boolean {
   if (typeof window === 'undefined') return false;
