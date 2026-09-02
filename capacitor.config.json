@@ -1,6 +1,11 @@
 {
   "appId": "com.gkd.controlediario",
-  "appName": "GKD Controle Diário",
+  "appName": "Controle Diário",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }

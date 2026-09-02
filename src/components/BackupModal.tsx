@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, FileSpreadsheet, Calendar as CalendarIcon, Download, ArrowLeft } from 'lucide-react';
 import { GkdMobilityLogo } from './GkdMobilityLogo';
+import appLogo from '../assets/icon2.png';
 
 export function BackupModal({ 
   isOpen, 
@@ -108,9 +109,9 @@ export function BackupModal({
           <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-zinc-800">
             <div className="flex items-center gap-3">
               <img 
-                src="/icon2.png" 
+                src={appLogo} 
                 alt="Ícone do App" 
-                className="w-10 h-10 rounded-xl object-cover border border-zinc-700 shadow-md"
+                className="w-10 h-10 rounded-xl object-contain border border-zinc-700 bg-white p-0.5 shadow-md"
               />
               <div>
                 <span className="text-xs font-bold text-zinc-200 block">Ícone do App</span>
@@ -118,7 +119,7 @@ export function BackupModal({
               </div>
             </div>
             <a
-              href="/icon2.png"
+              href={appLogo}
               download="icon2.png"
               className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
             >

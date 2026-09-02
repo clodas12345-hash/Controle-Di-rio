@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, fetchApi } from '../lib/api';
 import { 
   ClipboardPaste, 
   Sparkles, 
@@ -74,7 +74,7 @@ Troca de Pneus Parcelado\t250,00\t2/4`;
     setErrorMsg(null);
 
     try {
-      const response = await fetch(getApiUrl('/api/extract-receipt'), {
+      const response = await fetchApi('/api/extract-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -135,7 +135,13 @@ Troca de Pneus Parcelado\t250,00\t2/4`;
         setParsedItems(items);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erro ao processar as informações.');
+      console.error(err);
+      const msg = err?.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+        setErrorMsg('Não foi possível conectar ao servidor de Inteligência Artificial GKD. Verifique se seu celular está conectado à internet e tente novamente.');
+      } else {
+        setErrorMsg(msg || 'Erro ao processar as informações.');
+      }
     } finally {
       setIsProcessing(false);
     }

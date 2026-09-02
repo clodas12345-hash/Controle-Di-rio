@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getApiUrl } from '../lib/api';
+import { createPortal } from 'react-dom';
+import { getApiUrl, fetchApi } from '../lib/api';
 import { 
   FileText, 
   UploadCloud, 
@@ -21,6 +22,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { GkdMobilityLogo } from './GkdMobilityLogo';
+import { takeNativePhoto } from '../services/nativeCameraService';
 
 interface ExtractedData {
   detectedType?: string;
@@ -108,8 +110,105 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
   const [isSavedSuccess, setIsSavedSuccess] = useState(false);
   const [previewModalFile, setPreviewModalFile] = useState<{ name: string; url: string; mimeType: string } | null>(null);
 
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  const startCamera = async (facing: 'environment' | 'user' = cameraFacingMode) => {
+    setErrorMsg(null);
+    stopCamera();
+
+    // Se estiver rodando dentro do aplicativo nativo (APK / Capacitor), usa exclusivamente a câmera nativa do SO
+    if (typeof window !== 'undefined' && (window as any).Capacitor) {
+      try {
+        const photo = await takeNativePhoto(facing === 'environment' ? 'REAR' : 'FRONT');
+        if (photo) {
+          handleFileSelect([photo] as any);
+        }
+      } catch (err) {
+        console.error("Erro ao usar câmera nativa:", err);
+        setErrorMsg("Não foi possível acessar a câmera nativa.");
+      }
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMsg("API de câmera não disponível ou bloqueada neste navegador/dispositivo.");
+      return;
+    }
+
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: { ideal: facing },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          } 
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: facing } 
+        });
+      }
+      setCameraStream(stream);
+      setCameraActive(true);
+      setCameraFacingMode(facing);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(err => console.error(err));
+        }
+      }, 100);
+    } catch (err) {
+      console.error(err);
+      const photo = await takeNativePhoto(facing === 'environment' ? 'REAR' : 'FRONT');
+      if (photo) {
+        handleFileSelect([photo] as any);
+      }
+    }
+  };
+
+  const toggleCameraFacing = async () => {
+    const nextFacing = cameraFacingMode === 'environment' ? 'user' : 'environment';
+    await startCamera(nextFacing);
+  };
+
+  const takePhoto = () => {
+    if (!videoRef.current) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth || 1280;
+      canvas.height = videoRef.current.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            stopCamera();
+            handleFileSelect([file] as any);
+          }
+        }, 'image/jpeg', 0.95);
+      }
+    } catch (err) {
+      console.error(err);
+      stopCamera();
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -303,7 +402,7 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
         mimeType: f.mimeType
       }));
 
-      const response = await fetch(getApiUrl('/api/extract-receipt'), {
+      const response = await fetchApi('/api/extract-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -352,10 +451,13 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
       }
     } catch (err: any) {
       console.error(err);
+      const msg = err?.message || '';
       if (err.name === 'AbortError') {
         setErrorMsg('Tempo limite de 90 segundos excedido ao processar os documentos. Tente enviar menos fotos por vez.');
+      } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+        setErrorMsg('Não foi possível conectar ao servidor de Inteligência Artificial GKD. Verifique se seu celular está conectado à internet e tente novamente.');
       } else {
-        setErrorMsg(err.message || 'Falha ao conectar com o serviço de Inteligência Artificial.');
+        setErrorMsg(msg || 'Falha ao conectar com o serviço de Inteligência Artificial.');
       }
     } finally {
       setIsProcessing(false);
@@ -551,11 +653,11 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => cameraInputRef.current?.click()}
+                        onClick={() => startCamera('environment')}
                         className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center gap-2 border border-emerald-400/40"
                       >
                         <Camera className="w-5 h-5 text-emerald-100" />
-                        <span>Abrir Câmera (Foto)</span>
+                        <span>Abrir Câmera Tela Cheia</span>
                       </button>
 
                       <button
@@ -581,7 +683,7 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
                     ref={cameraInputRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
+                    capture="user"
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
@@ -1066,6 +1168,109 @@ export const DocumentFeederModal: React.FC<DocumentFeederModalProps> = ({
           </div>
 
         </div>
+
+        {/* CAMERA MODE - TELA CHEIA */}
+        {cameraActive && createPortal(
+          <div className="fixed inset-0 z-[100000] bg-black flex flex-col justify-between overflow-hidden select-none">
+            {/* Vídeo em Tela Cheia */}
+            <video 
+              ref={videoRef} 
+              className="absolute inset-0 w-full h-full object-cover" 
+              playsInline 
+              muted 
+              autoPlay
+            />
+
+            {/* Gradiente Superior para Controles */}
+            <div className="relative z-10 w-full bg-gradient-to-b from-black/90 via-black/50 to-transparent p-4 sm:p-6 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white font-bold px-4 py-2.5 rounded-full text-xs flex items-center gap-2 border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
+              >
+                <X className="w-4 h-4 text-red-400" />
+                <span>Fechar</span>
+              </button>
+
+              <div className="bg-emerald-950/80 backdrop-blur-md border border-emerald-500/40 px-3.5 py-1.5 rounded-full text-xs text-emerald-300 font-bold flex items-center gap-2 shadow-lg">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Câmera Ao Vivo ({cameraFacingMode === 'environment' ? 'Traseira' : 'Frontal'})</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white font-bold px-4 py-2.5 rounded-full text-xs flex items-center gap-2 border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
+                title="Virar Câmera"
+              >
+                <RefreshCw className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Virar Câmera</span>
+              </button>
+            </div>
+
+            {/* Moldura Guia de Enquadramento no Centro */}
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 pointer-events-none">
+              <div className="relative w-full max-w-sm aspect-[3/4] sm:aspect-[4/3] rounded-3xl border-2 border-dashed border-emerald-400/60 flex flex-col items-center justify-between p-4 shadow-2xl shadow-emerald-500/10">
+                {/* Cantoneiras Brilhantes */}
+                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-2xl"></div>
+                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-2xl"></div>
+                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-2xl"></div>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-2xl"></div>
+
+                {/* Linha Laser de Scanner */}
+                <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse shadow-lg shadow-emerald-400/80 my-auto"></div>
+
+                <div className="bg-black/75 backdrop-blur-md px-4 py-2 rounded-2xl border border-emerald-500/30 text-center">
+                  <p className="text-white text-xs font-bold">Enquadre o documento, recibo ou comprovante</p>
+                  <p className="text-emerald-300 text-[11px] mt-0.5">A foto será adicionada e analisada automaticamente</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Gradiente Inferior com Botão de Disparo */}
+            <div className="relative z-10 w-full bg-gradient-to-t from-black/95 via-black/70 to-transparent p-6 sm:p-8 flex flex-col items-center gap-4">
+              <div className="flex items-center justify-center gap-6 sm:gap-10 w-full max-w-md">
+                {/* Botão Galeria */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopCamera();
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-12 h-12 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
+                  title="Abrir da Galeria"
+                >
+                  <UploadCloud className="w-5 h-5 text-emerald-400" />
+                </button>
+
+                {/* Botão Shutter Principal de Captura */}
+                <button
+                  type="button"
+                  onClick={takePhoto}
+                  className="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex flex-col items-center justify-center gap-1 shadow-2xl shadow-emerald-500/50 border-4 border-white/90 transition-all cursor-pointer transform active:scale-90 hover:scale-105"
+                  title="Tirar Foto e Anexar"
+                >
+                  <Camera className="w-8 h-8 text-zinc-950" />
+                </button>
+
+                {/* Botão Virar Câmera */}
+                <button
+                  type="button"
+                  onClick={toggleCameraFacing}
+                  className="w-12 h-12 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
+                  title="Alternar Câmera"
+                >
+                  <RefreshCw className="w-5 h-5 text-emerald-400" />
+                </button>
+              </div>
+
+              <span className="text-white text-xs font-black tracking-wide uppercase drop-shadow-md">
+                Toque no botão para Tirar a Foto em Alta Definição
+              </span>
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* Full Document / PDF Preview Modal */}
         {previewModalFile && (

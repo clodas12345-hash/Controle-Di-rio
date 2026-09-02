@@ -33,22 +33,22 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Instalar Dependências e Plugins do Capacitor
+      - name: Instalar Dependências e Capacitor 6
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 @capacitor/camera@6.1.2 @capacitor/local-notifications@6.1.1 @capacitor/geolocation@6.0.2 @capacitor/filesystem@6.0.2 sharp --save-dev
+          npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 @capacitor/local-notifications@6.1.1 @capacitor/geolocation@6.0.2 @capacitor/camera@6.1.2 @capacitor/filesystem@6.0.2 sharp --save-dev
 
-      - name: Sincronizar Imagem Oficial Icon2.png
+      - name: Sincronizar Assets do Ícone
         run: |
           mkdir -p src/assets public
           node -e '
           const fs = require("fs");
-          let icon = ["Icon2.png", "public/icon2.png", "src/assets/icon2.png", "icon2.png", "public/Icon2.png"].find(p => fs.existsSync(p));
+          let icon = ["public/icon2.png", "icon2.png", "Icon2.png", "public/Icon2.png", "src/assets/icon2.png"].find(p => fs.existsSync(p));
           if (icon) {
             fs.copyFileSync(icon, "src/assets/icon2.png");
             fs.copyFileSync(icon, "public/icon2.png");
             fs.copyFileSync(icon, "public/icon.png");
-            console.log("Imagem oficial sincronizada a partir de:", icon);
+            console.log("Assets sincronizados com sucesso a partir de:", icon);
           }
           '
 
@@ -62,7 +62,7 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Injetar Permissões e Câmera no AndroidManifest.xml
+      - name: Injetar Todas as Permissões no AndroidManifest.xml
         run: |
           node -e '
           const fs = require("fs");
@@ -108,8 +108,7 @@ jobs:
 
           const features = [
             "android.hardware.camera",
-            "android.hardware.camera.autofocus",
-            "android.hardware.camera.front"
+            "android.hardware.camera.autofocus"
           ];
           for (const feat of features) {
             if (!manifest.includes(feat)) {
@@ -119,24 +118,29 @@ jobs:
 
           manifest = manifest.replace("<application", permissionsXml + "\n    <application");
           fs.writeFileSync(manifestPath, manifest, "utf8");
-          console.log("✅ Permissões e Câmera injetadas com sucesso no Android!");
+          console.log("✅ Todas as permissões foram injetadas no AndroidManifest.xml!");
           '
 
-      - name: Formatar Ícone Oficial com Zoom 88%
+      - name: Injetar Ícone Proporcional Alinhado (88% da Área)
         run: |
           node -e '
           const fs = require("fs");
           const path = require("path");
 
           async function run() {
-            let iconPath = ["Icon2.png", "public/icon2.png", "src/assets/icon2.png"].find(p => fs.existsSync(p));
+            let iconPath = ["public/icon2.png", "icon2.png", "Icon2.png", "public/Icon2.png", "src/assets/icon2.png"].find(p => fs.existsSync(p));
+            if (!iconPath) {
+              const files = fs.readdirSync("public");
+              const found = files.find(f => f.toLowerCase().includes("icon2"));
+              if (found) iconPath = path.join("public", found);
+            }
 
             if (!iconPath) {
               console.error("Nenhum ícone encontrado!");
               return;
             }
 
-            console.log("Utilizando imagem original com zoom 88%:", iconPath);
+            console.log("Utilizando ícone oficial:", iconPath);
             const resDir = path.resolve("android/app/src/main/res");
             const sharp = require("sharp");
 
@@ -152,7 +156,7 @@ jobs:
               const target = path.join(resDir, s.dir);
               if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
-              // Foreground adaptativo exatamente em 88%
+              // 88% da área: escala exata para bater visualmente com VoltaLá e Rastreador
               const logoSizeFg = Math.round(s.fg * 0.88);
               const logoBufferFg = await sharp(iconPath)
                 .resize(logoSizeFg, logoSizeFg, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -171,7 +175,7 @@ jobs:
               .png()
               .toFile(path.join(target, "ic_launcher_foreground.png"));
 
-              // Ícone quadrado legado exatamente em 88%
+              // Ícone legado quadrado (88%)
               const legacySize = Math.round(s.size * 0.88);
               const logoLegacy = await sharp(iconPath)
                 .resize(legacySize, legacySize, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
@@ -190,7 +194,7 @@ jobs:
               .png()
               .toFile(path.join(target, "ic_launcher.png"));
 
-              // Ícone redondo exatamente em 88%
+              // Ícone redondo (88%)
               await sharp({
                 create: {
                   width: s.size,
@@ -212,7 +216,7 @@ jobs:
               } catch(e){}
             }
 
-            console.log("✅ Ícones Android gerados com escala 88% exata!");
+            console.log("✅ Ícones formatados no tamanho oficial (88%)!");
           }
           run().catch(console.error);
           '

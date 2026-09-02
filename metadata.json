@@ -1,6 +1,12 @@
 {
   "name": "Controle Diário",
   "description": "GKD_CD_V.1.0.0 - Sistema completo de gestão operacional e financeira para motoristas de aplicativo. Acompanhamento diário de faturamento (Uber, 99, Particular), cálculo de custos por KM/energia/combustível, gestão de despesas fixas e relatórios analíticos integrados.",
-  "requestFramePermissions": ["camera", "microphone"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

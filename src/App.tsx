@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getApiUrl } from './lib/api';
+import { createPortal } from 'react-dom';
+import { getApiUrl, fetchApi } from './lib/api';
 import { BackupModal } from "./components/BackupModal";
 import { ExcelImportModal } from './components/ExcelImportModal';
 import { TollCalculator } from './components/TollCalculator';
@@ -8,6 +9,8 @@ import { AboutAppModal } from './components/AboutAppModal';
 import { DocumentFeederModal } from './components/DocumentFeederModal';
 import { DeepSweepModal, DeepSweepReport } from './components/DeepSweepModal';
 import { PasteFixedExpensesModal } from './components/PasteFixedExpensesModal';
+import { requestNotificationPermission, sendAppNotification } from './services/notificationService';
+import { takeNativePhoto } from './services/nativeCameraService';
 import { ConflictResolverModal, ConflictItem } from './components/ConflictResolverModal';
 import { 
   Car, 
@@ -502,6 +505,21 @@ export default function App() {
   const [isWeeklySummaryOpen, setIsWeeklySummaryOpen] = useState(false);
   const [projectionPaceMode, setProjectionPaceMode] = useState<'all_year' | 'selected_month'>('all_year');
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+
+  // Solicitar permissão de notificação automaticamente na inicialização
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  // Disparar notificação nativa sempre que houver aviso importante
+  useEffect(() => {
+    if (sweepNotification) {
+      sendAppNotification('Controle Diário', {
+        body: sweepNotification,
+        tag: 'controle-diario-status'
+      });
+    }
+  }, [sweepNotification]);
 
   // Handle Excel Data Import
   const handleExcelImport = (importedLogs: DailyLog[]) => {
@@ -1121,6 +1139,7 @@ export default function App() {
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const stopCamera = () => {
     if (cameraStream) {
@@ -1134,10 +1153,33 @@ export default function App() {
     setAiErrorMsg(null);
     setAiSuccessMsg(null);
     stopCamera();
+
+    // Se estiver rodando dentro do aplicativo nativo (APK / Capacitor), usa exclusivamente a câmera nativa do SO
+    if (typeof window !== 'undefined' && (window as any).Capacitor) {
+      await handleNativeCameraCapture();
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setAiErrorMsg("API de câmera não disponível ou bloqueada neste navegador/dispositivo.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facing } 
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: { ideal: facing },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          } 
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: facing } 
+        });
+      }
       setCameraStream(stream);
       setCameraActive(true);
       setCameraFacingMode(facing);
@@ -1151,13 +1193,39 @@ export default function App() {
       }, 100);
     } catch (err: any) {
       console.error(err);
-      setAiErrorMsg("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+      setAiErrorMsg("Não foi possível acessar a câmera. Verifique as permissões do dispositivo.");
     }
   };
 
   const toggleCameraFacing = async () => {
     const nextFacing = cameraFacingMode === 'environment' ? 'user' : 'environment';
     await startCamera(nextFacing);
+  };
+
+  const handleNativeCameraCapture = async () => {
+    try {
+      const { Camera: CapacitorCamera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+      const image = await CapacitorCamera.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera
+      });
+      if (image.base64String) {
+        setAiLoading(true);
+        setAiErrorMsg(null);
+        setAiSuccessMsg(null);
+        const mimeType = `image/${image.format || 'jpeg'}`;
+        const base64Data = `data:${mimeType};base64,${image.base64String}`;
+        await handleExtractReceipt(base64Data, mimeType);
+      }
+    } catch (err: any) {
+      console.error("Erro ao capturar foto nativa:", err);
+      if (err?.message?.includes('cancelled') || err?.message?.includes('cancelou') || String(err).includes('cancel')) {
+        return;
+      }
+      setAiErrorMsg("Não foi possível abrir a câmera nativa. Verifique as permissões do aplicativo.");
+    }
   };
 
   const takePhoto = async () => {
@@ -1169,7 +1237,7 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL('image/jpeg', 1.05);
+        const base64 = canvas.toDataURL('image/jpeg', 0.85);
         stopCamera();
         await handleExtractReceipt(base64, 'image/jpeg');
       }
@@ -1180,7 +1248,73 @@ export default function App() {
     }
   };
 
-  const processUploadedFiles = (files: FileList | File[]) => {
+  const compressImageFile = async (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve({
+          base64: reader.result as string,
+          mimeType: file.type
+        });
+        reader.onerror = () => resolve({ base64: '', mimeType: file.type });
+        return;
+      }
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1600;
+        const MAX_HEIGHT = 1600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          resolve({
+            base64: compressedDataUrl,
+            mimeType: 'image/jpeg'
+          });
+        } else {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve({
+            base64: reader.result as string,
+            mimeType: file.type
+          });
+        }
+      };
+      img.onerror = () => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve({
+          base64: reader.result as string,
+          mimeType: file.type
+        });
+      };
+    });
+  };
+
+  const processUploadedFiles = async (files: FileList | File[]) => {
     setAiErrorMsg(null);
     setAiSuccessMsg(null);
     const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -1189,21 +1323,25 @@ export default function App() {
       return;
     }
 
-    let loadedCount = 0;
-    const imageDataArray: Array<{ imageBase64: string; mimeType: string }> = [];
-
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        imageDataArray.push({ imageBase64: base64, mimeType: file.type });
-        loadedCount++;
-        if (loadedCount === validFiles.length) {
-          await handleExtractReceiptMulti(imageDataArray);
+    setAiLoading(true);
+    try {
+      const imageDataArray: Array<{ imageBase64: string; mimeType: string }> = [];
+      for (const file of validFiles) {
+        const compressed = await compressImageFile(file);
+        if (compressed.base64) {
+          imageDataArray.push({ imageBase64: compressed.base64, mimeType: compressed.mimeType });
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+      if (imageDataArray.length > 0) {
+        await handleExtractReceiptMulti(imageDataArray);
+      } else {
+        throw new Error("Não foi possível processar as imagens selecionadas.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAiErrorMsg(err?.message || "Erro ao processar as imagens.");
+      setAiLoading(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1239,7 +1377,7 @@ export default function App() {
     }, 90000); // 90 seconds timeout
 
     try {
-      const res = await fetch(getApiUrl("/api/extract-receipt"), {
+      const res = await fetchApi("/api/extract-receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
@@ -1508,10 +1646,13 @@ export default function App() {
       }
     } catch (error: any) {
       console.error(error);
+      const msg = error?.message || '';
       if (error.name === 'AbortError') {
-        setAiErrorMsg("Tempo limite de 90 segundos excedido ao processar as fotos. Verifique sua conexão e tente novamente com menos fotos.");
+        setAiErrorMsg("Tempo limite de 90 segundos excedido ao processar as fotos. Verifique sua conexão e tente novamente.");
+      } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+        setAiErrorMsg("Erro de conexão com o servidor de Inteligência Artificial. Verifique se o celular está conectado à internet e tente novamente.");
       } else {
-        setAiErrorMsg(error.message || "Erro ao tentar extrair dados do comprovante.");
+        setAiErrorMsg(msg || "Erro ao tentar extrair dados do comprovante.");
       }
     } finally {
       setAiLoading(false);
@@ -1632,7 +1773,7 @@ export default function App() {
     setVoiceSuccessMsg(null);
     setVoiceErrorMsg(null);
     try {
-      const res = await fetch(getApiUrl("/api/parse-voice"), {
+      const res = await fetchApi("/api/parse-voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: transcript }),
@@ -1812,7 +1953,7 @@ export default function App() {
     stopAssistantSpeaking();
 
     try {
-      const res = await fetch(getApiUrl("/api/assistant-search"), {
+      const res = await fetchApi("/api/assistant-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -6018,8 +6159,12 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        setAiTabMode('camera');
-                        startCamera('environment');
+                        if (typeof window !== 'undefined' && (window as any).Capacitor) {
+                          handleNativeCameraCapture();
+                        } else {
+                          setAiTabMode('camera');
+                          startCamera(cameraFacingMode);
+                        }
                       }}
                       className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         aiTabMode === 'camera'
@@ -6073,48 +6218,107 @@ export default function App() {
                   </div>
                 )}
 
-                {/* CAMERA MODE */}
-                {cameraActive && (
-                  <div className="space-y-2.5">
-                    <div className="relative aspect-video rounded-xl overflow-hidden border border-emerald-500/30 bg-black flex items-center justify-center shadow-lg">
-                      <video 
-                        ref={videoRef} 
-                        className="w-full h-full object-cover" 
-                        playsInline 
-                        muted 
-                      />
-                      <div className="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-emerald-300 flex items-center gap-1.5 border border-emerald-500/30">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                        Câmera Ao Vivo
-                      </div>
-                      <button
-                        type="button"
-                        onClick={toggleCameraFacing}
-                        className="absolute top-2.5 left-2.5 bg-black/70 hover:bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-zinc-300 flex items-center gap-1.5 border border-zinc-700 cursor-pointer"
-                        title="Virar Câmera"
-                      >
-                        <RefreshCw className="w-3 h-3 text-emerald-400" />
-                        <span>Virar ({cameraFacingMode === 'environment' ? 'Traseira' : 'Frontal'})</span>
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={takePhoto}
-                        className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/30"
-                      >
-                        <Camera className="w-4 h-4" />
-                        Capturar e Ler com IA
-                      </button>
+                {/* CAMERA MODE - TELA CHEIA */}
+                {cameraActive && createPortal(
+                  <div className="fixed inset-0 z-[100000] bg-black flex flex-col justify-between overflow-hidden select-none">
+                    {/* Vídeo em Tela Cheia */}
+                    <video 
+                      ref={videoRef} 
+                      className="absolute inset-0 w-full h-full object-cover" 
+                      playsInline 
+                      muted 
+                      autoPlay
+                    />
+
+                    {/* Gradiente Superior para Controles */}
+                    <div className="relative z-10 w-full bg-gradient-to-b from-black/90 via-black/50 to-transparent p-4 sm:p-6 flex items-center justify-between">
                       <button
                         type="button"
                         onClick={stopCamera}
-                        className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-bold py-2.5 px-4 rounded-xl transition-colors cursor-pointer border border-zinc-700"
+                        className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white font-bold px-4 py-2.5 rounded-full text-xs flex items-center gap-2 border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
                       >
-                        Fechar
+                        <X className="w-4 h-4 text-red-400" />
+                        <span>Fechar</span>
+                      </button>
+
+                      <div className="bg-emerald-950/80 backdrop-blur-md border border-emerald-500/40 px-3.5 py-1.5 rounded-full text-xs text-emerald-300 font-bold flex items-center gap-2 shadow-lg">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>Câmera Ao Vivo ({cameraFacingMode === 'environment' ? 'Traseira' : 'Frontal'})</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={toggleCameraFacing}
+                        className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white font-bold px-4 py-2.5 rounded-full text-xs flex items-center gap-2 border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
+                        title="Virar Câmera"
+                      >
+                        <RefreshCw className="w-4 h-4 text-emerald-400" />
+                        <span className="hidden sm:inline">Virar Câmera</span>
                       </button>
                     </div>
-                  </div>
+
+                    {/* Moldura Guia de Enquadramento no Centro */}
+                    <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 pointer-events-none">
+                      <div className="relative w-full max-w-sm aspect-[3/4] sm:aspect-[4/3] rounded-3xl border-2 border-dashed border-emerald-400/60 flex flex-col items-center justify-between p-4 shadow-2xl shadow-emerald-500/10">
+                        {/* Cantoneiras Brilhantes */}
+                        <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-2xl"></div>
+                        <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-2xl"></div>
+                        <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-2xl"></div>
+                        <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-2xl"></div>
+
+                        {/* Linha Laser de Scanner */}
+                        <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse shadow-lg shadow-emerald-400/80 my-auto"></div>
+
+                        <div className="bg-black/75 backdrop-blur-md px-4 py-2 rounded-2xl border border-emerald-500/30 text-center">
+                          <p className="text-white text-xs font-bold">Enquadre o comprovante, recibo ou tela da Uber / 99</p>
+                          <p className="text-emerald-300 text-[11px] mt-0.5">A IA fará a leitura automática de todos os valores</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Gradiente Inferior com Botão de Disparo */}
+                    <div className="relative z-10 w-full bg-gradient-to-t from-black/95 via-black/70 to-transparent p-6 sm:p-8 flex flex-col items-center gap-4">
+                      <div className="flex items-center justify-center gap-6 sm:gap-10 w-full max-w-md">
+                        {/* Botão Galeria */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            stopCamera();
+                            fileInputRef.current?.click();
+                          }}
+                          className="w-12 h-12 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
+                          title="Abrir da Galeria"
+                        >
+                          <Upload className="w-5 h-5 text-emerald-400" />
+                        </button>
+
+                        {/* Botão Shutter Principal de Captura */}
+                        <button
+                          type="button"
+                          onClick={takePhoto}
+                          className="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex flex-col items-center justify-center gap-1 shadow-2xl shadow-emerald-500/50 border-4 border-white/90 transition-all cursor-pointer transform active:scale-90 hover:scale-105"
+                          title="Tirar Foto e Ler com IA"
+                        >
+                          <Camera className="w-8 h-8 text-zinc-950" />
+                        </button>
+
+                        {/* Botão Virar Câmera */}
+                        <button
+                          type="button"
+                          onClick={toggleCameraFacing}
+                          className="w-12 h-12 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
+                          title="Alternar Câmera"
+                        >
+                          <RefreshCw className="w-5 h-5 text-emerald-400" />
+                        </button>
+                      </div>
+
+                      <span className="text-white text-xs font-black tracking-wide uppercase drop-shadow-md">
+                        Toque no botão para Fotografar e Preencher com IA
+                      </span>
+                    </div>
+                  </div>,
+                  document.body
                 )}
 
                 {/* UPLOAD MODE */}
@@ -6149,6 +6353,15 @@ export default function App() {
                       type="file" 
                       accept="image/*" 
                       multiple
+                      className="hidden" 
+                      onChange={handleFileChange}
+                    />
+
+                    <input 
+                      ref={cameraInputRef}
+                      type="file" 
+                      accept="image/*" 
+                      capture="user"
                       className="hidden" 
                       onChange={handleFileChange}
                     />

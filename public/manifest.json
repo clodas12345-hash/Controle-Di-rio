@@ -1,6 +1,6 @@
 {
-  "name": "GKD Controle Diário",
-  "short_name": "GKD C.D.",
+  "name": "Controle Diário",
+  "short_name": "Controle Diário",
   "version": "GKD.C.D.V1.0.0",
   "description": "Sistema completo de gestão operacional e financeira para motoristas de aplicativo com acompanhamento de faturamento, cálculo de custos por KM, gestão de despesas fixas e sincronização em nuvem.",
   "start_url": "/",

@@ -43,9 +43,7 @@ export const AboutAppModal: React.FC<AboutAppModalProps> = ({ isOpen, onClose, o
         {/* Header with gradient banner */}
         <div className="relative px-6 py-6 border-b border-zinc-800/80 bg-gradient-to-r from-zinc-900 via-zinc-950 to-emerald-950/40 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-1 bg-white rounded-xl shadow-md">
-              <GkdMobilityLogo size="sm" />
-            </div>
+            <GkdMobilityLogo size="sm" className="shadow-md" />
             <div>
               <h2 className="text-lg font-black tracking-tight text-zinc-100 flex items-center gap-2">
                 GKD Controle Diário
@@ -81,8 +79,8 @@ export const AboutAppModal: React.FC<AboutAppModalProps> = ({ isOpen, onClose, o
           
           {/* Hero Branding Section */}
           <div className="bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-zinc-800/80 rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6 shadow-inner text-center sm:text-left">
-            <div className="p-3 bg-white rounded-2xl shadow-xl border border-zinc-300/40 shrink-0">
-              <GkdMobilityLogo size="hero" />
+            <div className="shrink-0">
+              <GkdMobilityLogo size="hero" className="shadow-xl border border-zinc-300/40" />
             </div>
             <div className="space-y-2 flex-1">
               <h3 className="text-base font-bold text-zinc-100">GKD Controle Diário</h3>
