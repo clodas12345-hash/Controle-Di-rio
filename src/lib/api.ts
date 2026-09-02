@@ -57,7 +57,7 @@ export async function fetchApi(path: string, options: RequestInit = {}): Promise
         continue;
       }
 
-      if (response.ok || response.status < 500) {
+      if (response.ok || contentType.includes("application/json")) {
         return response;
       }
     } catch (err: any) {

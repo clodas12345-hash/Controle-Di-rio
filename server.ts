@@ -16,7 +16,7 @@ const ai = new GoogleGenAI({
 });
 
 // Helper function to query Gemini with retry and fallback models to prevent transient 503/429 errors
-const DEFAULT_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+const DEFAULT_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite"];
 
 async function generateContentWithRetryAndFallback(
   params: any,
