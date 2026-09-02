@@ -48,6 +48,15 @@ export async function fetchApi(path: string, options: RequestInit = {}): Promise
   for (const url of candidates) {
     try {
       const response = await fetch(url, options);
+      
+      // Se o endpoint retornou HTML (ex: index.html devido ao roteamento SPA ou erro do servidor),
+      // ignoramos este candidato pois esperamos uma resposta em formato JSON.
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        console.warn(`[fetchApi] URL ${url} retornou HTML em vez de JSON. Ignorando fallback.`);
+        continue;
+      }
+
       if (response.ok || response.status < 500) {
         return response;
       }
